@@ -1,22 +1,24 @@
 import os.path
 
+
 def dna_complement(nucleotide):
     match nucleotide:
         case 'A':
             return 'T'
-        case 'T'|'U':
+        case 'T' | 'U':
             return 'A'
         case 'C':
             return 'G'
         case 'G':
             return 'C'
     raise Exception('unknown nucleotide ' + nucleotide)
+
 
 def rna_complement(nucleotide):
     match nucleotide:
         case 'A':
             return 'U'
-        case 'T'|'U':
+        case 'T' | 'U':
             return 'A'
         case 'C':
             return 'G'
@@ -24,7 +26,8 @@ def rna_complement(nucleotide):
             return 'C'
     raise Exception('unknown nucleotide ' + nucleotide)
 
-def readFasta(path:str):
+
+def readFasta(path: str):
     if not os.path.exists(path):
         return None
 
