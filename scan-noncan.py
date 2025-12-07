@@ -16,12 +16,14 @@ MCGEARY_LIN_FILENAME = 'GSE140217_HeLa_transfection_logtpm.txt'
 BIOMART_REFSEQ_MAP_FILENAME = 'biomart_refseq_map.txt'
 MANE_FILENAME = 'MANE.GRCh38.v1.3.summary.txt'
 MIR_FILENAME = 'mir.csv'
+THRESHOLD = 50
 
-# 1 = 6mer = position 2–7 match seed match
-# 2 = a1 = position 2–7 match + A at position 1
-# 3 = m8 = position 2–8 match
-# 4 = full = 2–8 with an A opposite position
-FEATURES: dict[int, str] = {1: '6mer', 2: 'a1', 3: 'm8', 4: 'full'}
+# 1 = noncanonical NW match
+# 2 = 6mer = position 2–7 match seed match
+# 3 = a1 = position 2–7 match + A at position 1
+# 4 = m8 = position 2–8 match
+# 5 = full = 2–8 with an A opposite position
+FEATURES: dict[int, str] = {1: 'noncanonical', 2: '6mer', 3: 'a1', 4: 'm8', 5: 'full'}
 FEATURE_COUNT: int = len(FEATURES)
 FEATURE_TO_ID = {name: id for id, name in FEATURES.items()}
 
@@ -29,7 +31,7 @@ REGION_5UTR: int = 1
 REGION_CODING: int = 3
 REGION_3UTR: int = 5
 REGION_COUNT: int = 3
-PRINT_ROW_COUNT = 100
+PRINT_ROW_COUNT = 10
 
 # module-level variables
 ref_to_mane_map = {}
@@ -125,9 +127,12 @@ def classify_site(seed: str, mrna: str, pos: int, matrix):
     if is_6mer(seed, mrna, start, pos):
         a = int(mrna[pos - 1] == 'A')
         n1 = int(mrna[pos - 8] == seed[-8])
-        site_classification = 1 + a + n1 * 2
+        site_classification = 2 + a + n1 * 2
         return site_classification
     else:
+        score = align(seed, mrna[pos - len(seed):pos], matrix)
+        if score >= THRESHOLD:
+            return 1
         return 0
 
 
@@ -147,6 +152,33 @@ def get_col(region_id: int, feature_id: int) -> int:
 
 
 @njit
+def align(mirna: str, mrna: str, matrix) -> int:
+    score_match_cg = 4
+    score_match_at = 3
+    score_mismatch = -2
+    score_gap = -2
+
+    if len(mirna) != len(mrna):
+        raise Exception("unsupported")
+
+    for i, c1 in enumerate(mrna):
+        for j, c2 in enumerate(mirna):
+            diag = matrix[i][j]
+            if c1 == c2:
+                if c1 == "C" or c1 == "G":
+                    diag += score_match_cg
+                else:
+                    diag += score_match_at
+                matrix[i + 1][j + 1] = diag
+            else:
+                diag += score_mismatch
+                left = matrix[i + 1][j] + score_gap
+                up = matrix[i][j + 1] + score_gap
+                matrix[i + 1][j + 1] = max(diag, up, left)
+    
+    return matrix[len(mirna)][len(mrna)]
+
+
 def scan_mrna_mirna(mrna: str, seed: str, coding_start, coding_end) -> list:
     data = [0 for i in range(REGION_COUNT * FEATURE_COUNT)]
     matrix = np.zeros((len(mrna) + 1, len(mrna) + 1), dtype=np.int8)
