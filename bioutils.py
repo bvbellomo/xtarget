@@ -27,7 +27,7 @@ def rna_complement(nucleotide):
     raise Exception('unknown nucleotide ' + nucleotide)
 
 
-def readFasta(path: str):
+def readFasta(path: str) -> tuple[str, str] | None:
     if not os.path.exists(path):
         return None
 
