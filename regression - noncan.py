@@ -24,7 +24,7 @@ STRAND_COEF_ITERATIONS = 10
 STRAND_CONVERGENCE = 0.0001
 MAX_MIR_LEN = 23
 
-FEATURES: dict[int, str] = {1: '6mer', 2: 'a1', 3: 'm8', 4: 'full'}
+FEATURES: dict[int, str] = {1: 'noncan', 2: '6mer', 3: 'a1', 4: 'm8', 5: 'full'}
 REGIONS: dict[int, str] = {1: "5'UTR", 2: "Coding", 3: "3'UTR"}
 SCAN_COL_COUNT = len(FEATURES) * len(REGIONS)
 
@@ -248,6 +248,8 @@ def load_data() -> tuple[BaselineData,
         if original not in EXCLUDE_MRNA:
             mir = str(row[2])
             strand = str(row[3])
+            if original == 'NM_000031' and mir == 'mir143' and strand == '5p':
+                pass
             # This assumes strands in the scan are always in order from 5p to 3p
             if strand == '5p':
                 x_strand_row = []
@@ -452,6 +454,25 @@ def predict(baseline_data: BaselineData, X, weights):
         raise Exception('bad baseline')
     return np.multiply(baseline_data.baseline_by_row, 1 - np.clip(np.dot(X, weights), 0, 1))
 
+# def print_weights2(weights):
+#     weight_labels = [''] * (len(REGIONS) * len(FEATURES))
+#     for region_id, region_name in REGIONS.items():
+#         for feature_id, feature_name in FEATURES.items():
+#             weight_labels[region_id + feature_id] = region_name + '_' + feature_name
+
+#     weight_labels = ["5'UTR 6mer", "5'UTR a1", "5'UTR m8", "5'UTR full",
+#                      "Coding 6mer", "Coding a1", "Coding m8", "Coding full"]
+#     if len(weights) == 12:
+#         weight_labels += ["3'UTR 6mer", "3'UTR a1", "3'UTR m8", "3'UTR full"]
+#     elif len(weights) == 16:
+#         weight_labels += ["3'UTR 6mer N", "3'UTR a1 N", "3'UTR m8 N", "3'UTR full N",
+#                           "3'UTR 6mer Y", "3'UTR a1 Y", "3'UTR m8 Y", "3'UTR full Y"]
+#     else:
+#         raise ValueError('could not label unknown number of weights')
+
+#     for i, w in enumerate(weights):
+#         print(f'{weight_labels[i]}\t{w:4f}')
+
 
 def format_feature(val, precision) -> str:
     return f'\t{val:.{precision}f}' if val else '\t0'
@@ -465,6 +486,9 @@ def format_feature_region_matrix(data, precision) -> str:
         region_labels += ["3'UTR N", "3'UTR Y"]
     else:
         return '\t'.join(f'{w:4f}' for w in data)
+
+#    class_labels = ["6mer", "a1", "m8", "full"]
+    # class_labels = ["6mer", "6mer+s", "a1", "a1+s", "m8", "m8+s", "full", "full+s"]
 
     s = '\t' + '\t'.join(FEATURES.values()) + '\n'
     for i, l in enumerate(region_labels):
